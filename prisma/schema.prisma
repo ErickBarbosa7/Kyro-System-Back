@@ -1,0 +1,376 @@
+// ==========================================
+// DATASOURCE & GENERATOR
+// ==========================================
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum EstadoPieza {
+  ACTIVO
+  BORRADOR
+  DESCONTINUADO
+}
+
+enum TipoCobro {
+  FIJO
+  POR_PIEZA
+  POR_GRAMO
+  POR_LOTE
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
+  AJUSTE
+  MERMA
+}
+
+model Rol {
+  id          String  @id @default(uuid()) @db.Uuid
+  nombre      String  @unique // "Administrador", "Produccion", etc.
+  descripcion String?
+  activo      Boolean @default(true)
+
+  usuarios Usuario[]
+
+  @@map("roles")
+}
+
+enum TipoProductoAuditoria {
+  MATERIAL
+  METAL
+  ACABADO
+}
+
+enum Periodicidad {
+  SEMANAL
+  MENSUAL
+  ANUAL
+  UNICA
+}
+
+// ==========================================
+// MÓDULO 1: CATÁLOGOS BASE
+// ==========================================
+
+model Proveedor {
+  id            String   @id @default(uuid()) @db.Uuid
+  nombre        String
+  domicilio     String?
+  telefono      String?
+  email         String?
+  paginaWeb     String?  @map("pagina_web")
+  redesSociales String?  @map("redes_sociales")
+  observaciones String?  @db.Text
+  fechaRegistro DateTime @default(now()) @map("fecha_registro") @db.Date
+  activo        Boolean  @default(true)
+
+  materiales Material[]
+  metales    Metal[]
+  acabados   Acabado[]
+
+  @@map("proveedores")
+}
+
+model Material {
+  id               String     @id @default(uuid()) @db.Uuid
+  proveedorId      String?    @map("proveedor_id") @db.Uuid
+  proveedor        Proveedor? @relation(fields: [proveedorId], references: [id])
+  nombre           String
+  categoria        String
+  descripcion      String?    @db.Text
+  imagenUrl        String?    @map("imagen_url")
+  unidadCompra     String     @map("unidad_compra")
+  precioCompra     Decimal    @map("precio_compra") @db.Decimal(12, 4)
+  cantidadComprada Decimal    @map("cantidad_comprada") @db.Decimal(12, 4)
+  costoUnitario    Decimal    @map("costo_unitario") @db.Decimal(12, 4)
+  stockDisponible  Decimal    @map("stock_disponible") @db.Decimal(12, 4)
+  stockMinimo      Decimal    @map("stock_minimo") @db.Decimal(12, 4)
+  stockMaximo      Decimal?   @map("stock_maximo") @db.Decimal(12, 4)
+  fechaCompra      DateTime?  @map("fecha_compra") @db.Date
+  activo           Boolean    @default(true)
+
+  costeoMateriales CosteoMaterial[]
+
+  @@index([proveedorId])
+  @@index([categoria])
+  @@index([activo])
+  @@map("materiales")
+}
+
+model Metal {
+  id                 String     @id @default(uuid()) @db.Uuid
+  proveedorId        String?    @map("proveedor_id") @db.Uuid
+  proveedor          Proveedor? @relation(fields: [proveedorId], references: [id])
+  nombre             String
+  precioPorGramo     Decimal    @map("precio_por_gramo") @db.Decimal(12, 4)
+  stockDisponible    Decimal    @map("stock_disponible") @db.Decimal(12, 4)
+  stockMinimo        Decimal    @map("stock_minimo") @db.Decimal(12, 4)
+  fechaActualizacion DateTime   @default(now()) @map("fecha_actualizacion") @db.Timestamp
+  observaciones      String?    @db.Text
+
+  costeoMetales CosteoMetal[]
+
+  @@index([proveedorId])
+  @@map("metales")
+}
+
+model Acabado {
+  id          String     @id @default(uuid()) @db.Uuid
+  proveedorId String?    @map("proveedor_id") @db.Uuid
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
+  nombre      String
+  descripcion String?    @db.Text
+  tipoCobro   TipoCobro  @map("tipo_cobro")
+  costoBase   Decimal    @map("costo_base") @db.Decimal(12, 4)
+  activo      Boolean    @default(true)
+
+  costeoAcabados CosteoAcabado[]
+
+  @@index([proveedorId])
+  @@map("acabados")
+}
+
+// ==========================================
+// MÓDULO 2: CATÁLOGOS DE PIEZAS
+// ==========================================
+
+model TipoPieza {
+  id     String  @id @default(uuid()) @db.Uuid
+  nombre String
+  codigo String  @unique
+  activo Boolean @default(true)
+
+  piezas Pieza[]
+
+  @@map("tipos_pieza")
+}
+
+model Coleccion {
+  id          String  @id @default(uuid()) @db.Uuid
+  nombre      String
+  codigo      String  @unique
+  descripcion String? @db.Text
+  activa      Boolean @default(true)
+
+  piezas Pieza[]
+
+  @@map("colecciones")
+}
+
+// ==========================================
+// MÓDULO 3: PIEZAS Y VARIANTES
+// ==========================================
+
+model Pieza {
+  id                   String      @id @default(uuid()) @db.Uuid
+  tipoId               String      @map("tipo_id") @db.Uuid
+  tipo                 TipoPieza   @relation(fields: [tipoId], references: [id])
+  coleccionId          String      @map("coleccion_id") @db.Uuid
+  coleccion            Coleccion   @relation(fields: [coleccionId], references: [id])
+  clave                String      @unique
+  nombreComercial      String      @map("nombre_comercial")
+  estado               EstadoPieza
+  descripcion          String?     @db.Text
+  pesoTotal            Decimal?    @map("peso_total") @db.Decimal(12, 4)
+  tiempoFabricacionHrs Decimal?    @map("tiempo_fabricacion_hrs") @db.Decimal(8, 2)
+  imagenUrl            String?     @map("imagen_url")
+  fechaCreacion        DateTime    @default(now()) @map("fecha_creacion") @db.Date
+
+  skus                  PiezaSku[]
+  costeoMateriales      CosteoMaterial[]
+  costeoMetales         CosteoMetal[]
+  costeoAcabados        CosteoAcabado[]
+  costeoManoObra        CosteoManoObra[]
+  costeoGastosAplicados CosteoGastoAplicado[]
+
+  @@index([coleccionId])
+  @@index([tipoId])
+  @@index([estado])
+  @@map("piezas")
+}
+
+model PiezaSku {
+  id                  String  @id @default(uuid()) @db.Uuid
+  piezaId             String  @map("pieza_id") @db.Uuid
+  pieza               Pieza   @relation(fields: [piezaId], references: [id])
+  sku                 String  @unique
+  descripcionVariante String? @map("descripcion_variante")
+  activo              Boolean @default(true)
+
+  @@index([piezaId])
+  @@map("piezas_sku")
+}
+
+// ==========================================
+// MÓDULO 4: TABLAS DE COSTEO (RECETA)
+// ==========================================
+
+model CosteoMaterial {
+  id                    String   @id @default(uuid()) @db.Uuid
+  piezaId               String   @map("pieza_id") @db.Uuid
+  pieza                 Pieza    @relation(fields: [piezaId], references: [id])
+  materialId            String   @map("material_id") @db.Uuid
+  material              Material @relation(fields: [materialId], references: [id])
+  cantidadUtilizada     Decimal  @map("cantidad_utilizada") @db.Decimal(12, 4)
+  costoUnitarioSnapshot Decimal  @map("costo_unitario_snapshot") @db.Decimal(12, 4)
+  subtotal              Decimal  @db.Decimal(12, 4)
+
+  @@index([piezaId])
+  @@index([materialId])
+  @@map("costeo_materiales")
+}
+
+model CosteoMetal {
+  id                  String  @id @default(uuid()) @db.Uuid
+  piezaId             String  @map("pieza_id") @db.Uuid
+  pieza               Pieza   @relation(fields: [piezaId], references: [id])
+  metalId             String  @map("metal_id") @db.Uuid
+  metal               Metal   @relation(fields: [metalId], references: [id])
+  pesoUtilizadoGr     Decimal @map("peso_utilizado_gr") @db.Decimal(12, 4)
+  precioGramoSnapshot Decimal @map("precio_gramo_snapshot") @db.Decimal(12, 4)
+  subtotal            Decimal @db.Decimal(12, 4)
+
+  @@index([piezaId])
+  @@index([metalId])
+  @@map("costeo_metales")
+}
+
+model CosteoAcabado {
+  id                    String  @id @default(uuid()) @db.Uuid
+  piezaId               String  @map("pieza_id") @db.Uuid
+  pieza                 Pieza   @relation(fields: [piezaId], references: [id])
+  acabadoId             String  @map("acabado_id") @db.Uuid
+  acabado               Acabado @relation(fields: [acabadoId], references: [id])
+  cantidad              Decimal @db.Decimal(12, 4)
+  costoUnitarioSnapshot Decimal @map("costo_unitario_snapshot") @db.Decimal(12, 4)
+  subtotal              Decimal @db.Decimal(12, 4)
+
+  @@index([piezaId])
+  @@index([acabadoId])
+  @@map("costeo_acabados")
+}
+
+model CosteoManoObra {
+  id           String  @id @default(uuid()) @db.Uuid
+  piezaId      String  @map("pieza_id") @db.Uuid
+  pieza        Pieza   @relation(fields: [piezaId], references: [id])
+  actividad    String
+  tiempoHrs    Decimal @map("tiempo_hrs") @db.Decimal(8, 2)
+  costoPorHora Decimal @map("costo_por_hora") @db.Decimal(12, 4)
+  subtotal     Decimal @db.Decimal(12, 4)
+
+  @@index([piezaId])
+  @@map("costeo_mano_obra")
+}
+
+model CosteoGastoAplicado {
+  id              String         @id @default(uuid()) @db.Uuid
+  piezaId         String         @map("pieza_id") @db.Uuid
+  pieza           Pieza          @relation(fields: [piezaId], references: [id])
+  gastoId         String         @map("gasto_id") @db.Uuid
+  gastoOperativo  GastoOperativo @relation(fields: [gastoId], references: [id])
+  importeAplicado Decimal        @map("importe_aplicado") @db.Decimal(12, 4)
+
+  @@index([piezaId])
+  @@index([gastoId])
+  @@map("costeo_gastos_aplicados")
+}
+
+// ==========================================
+// MÓDULO 5: ADMINISTRACIÓN Y GASTOS
+// ==========================================
+
+model GastoOperativo {
+  id            String       @id @default(uuid()) @db.Uuid
+  concepto      String
+  categoria     String
+  monto         Decimal      @db.Decimal(12, 4)
+  periodicidad  Periodicidad
+  fecha         DateTime     @db.Date
+  activo        Boolean      @default(true)
+  observaciones String?      @db.Text
+
+  costeoGastosAplicados CosteoGastoAplicado[]
+
+  @@map("gastos_operativos")
+}
+
+model ConfiguracionMargen {
+  id              String   @id @default(uuid()) @db.Uuid
+  nombre          String
+  margenTaller    Decimal  @map("margen_taller") @db.Decimal(6, 4)
+  margenMayorista Decimal  @map("margen_mayorista") @db.Decimal(6, 4)
+  margenPublico   Decimal  @map("margen_publico") @db.Decimal(6, 4)
+  descuentoMaximo Decimal? @map("descuento_maximo") @db.Decimal(6, 4)
+  activo          Boolean  @default(true)
+
+  @@map("configuracion_margenes")
+}
+
+model Usuario {
+  id       String  @id @default(uuid()) @db.Uuid
+  nombre   String
+  apellido String?
+  email    String  @unique
+  password String
+
+  rolId String @map("rol_id") @db.Uuid
+  rol   Rol    @relation(fields: [rolId], references: [id])
+
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp
+
+  movimientosInventario InventarioMovimiento[]
+  historialesPrecio     HistorialPrecio[]
+
+  @@index([rolId])
+  @@map("usuarios")
+}
+
+// ==========================================
+// MÓDULO 6: AUDITORÍA Y TRAZABILIDAD
+// ==========================================
+
+// Nota: Las tablas polimórficas (productoId) no llevan @relation en Prisma
+// porque apuntan a múltiples entidades distintas.
+// La validación de IDs se realiza en la capa del backend.
+
+model InventarioMovimiento {
+  id             String                @id @default(uuid()) @db.Uuid
+  tipoProducto   TipoProductoAuditoria @map("tipo_producto")
+  productoId     String                @map("producto_id") @db.Uuid
+  tipoMovimiento TipoMovimiento        @map("tipo_movimiento")
+  cantidad       Decimal               @db.Decimal(12, 4)
+  motivo         String?
+  usuarioId      String                @map("usuario_id") @db.Uuid
+  usuario        Usuario               @relation(fields: [usuarioId], references: [id])
+  fecha          DateTime              @default(now()) @db.Timestamp
+
+  @@index([tipoProducto, productoId])
+  @@map("inventario_movimientos")
+}
+
+model HistorialPrecio {
+  id             String                @id @default(uuid()) @db.Uuid
+  tipoProducto   TipoProductoAuditoria @map("tipo_producto")
+  productoId     String                @map("producto_id") @db.Uuid
+  precioAnterior Decimal               @map("precio_anterior") @db.Decimal(12, 4)
+  precioNuevo    Decimal               @map("precio_nuevo") @db.Decimal(12, 4)
+  usuarioId      String                @map("usuario_id") @db.Uuid
+  usuario        Usuario               @relation(fields: [usuarioId], references: [id])
+  fechaCambio    DateTime              @default(now()) @map("fecha_cambio") @db.Timestamp
+  motivo         String?               @db.Text
+
+  @@index([tipoProducto, productoId])
+  @@map("historial_precios")
+}
