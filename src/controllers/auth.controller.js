@@ -1,6 +1,6 @@
 require('dotenv').config();
 const prisma = require('../db');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 // Registro de usuario (Solo para Admin)
 const registrarUsuario = async (req, res) => {
