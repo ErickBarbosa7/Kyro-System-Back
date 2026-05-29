@@ -86,7 +86,8 @@ model Material {
   proveedorId      String?    @map("proveedor_id") @db.Uuid
   proveedor        Proveedor? @relation(fields: [proveedorId], references: [id])
   nombre           String
-  categoria        String
+  categoriaId      String            @map("categoria_id") @db.Uuid
+  categoria        CategoriaMaterial @relation(fields: [categoriaId], references: [id])
   descripcion      String?    @db.Text
   imagenUrl        String?    @map("imagen_url")
   unidadCompra     String     @map("unidad_compra")
@@ -102,9 +103,20 @@ model Material {
   costeoMateriales CosteoMaterial[]
 
   @@index([proveedorId])
-  @@index([categoria])
+  @@index([categoriaId])
   @@index([activo])
   @@map("materiales")
+}
+
+model CategoriaMaterial {
+  id          String     @id @default(uuid()) @db.Uuid
+  nombre      String     @unique // Para que no haya dos categorías "Metales"
+  descripcion String?    @db.Text
+  activa      Boolean    @default(true)
+
+  materiales  Material[]
+
+  @@map("categorias_material")
 }
 
 model Metal {
@@ -115,6 +127,7 @@ model Metal {
   precioPorGramo     Decimal    @map("precio_por_gramo") @db.Decimal(12, 4)
   stockDisponible    Decimal    @map("stock_disponible") @db.Decimal(12, 4)
   stockMinimo        Decimal    @map("stock_minimo") @db.Decimal(12, 4)
+  activo Boolean @default(true)
   fechaActualizacion DateTime   @default(now()) @map("fecha_actualizacion") @db.Timestamp
   observaciones      String?    @db.Text
 
