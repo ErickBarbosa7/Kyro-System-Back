@@ -22,11 +22,22 @@ const verificarToken = (req, res, next) => {
 // Guardia 2: Verifica si tu Rol tiene permiso para esta acción
 const verificarRol = (...rolesPermitidos) => {
     return (req, res, next) => {
-        // req.usuario fue inyectado por verificarToken previamente
-        if (!req.usuario || !rolesPermitidos.includes(req.usuario.rol)) {
+        if (!req.usuario || !req.usuario.rol) {
             return res.status(403).json({ error: 'No tienes los permisos necesarios para realizar esta acción' });
         }
-        next();
+
+        // 1. Convertimos el rol que trae el token a mayúsculas
+        const rolDelUsuario = req.usuario.rol.toUpperCase();
+
+        // 2. Convertimos los roles que pide la ruta a mayúsculas
+        const rolesValidos = rolesPermitidos.map(rol => rol.toUpperCase());
+
+        // 3. Comparamos peras con peras (ej. 'ADMINISTRADOR' incluye a 'ADMINISTRADOR')
+        if (!rolesValidos.includes(rolDelUsuario)) {
+            return res.status(403).json({ error: 'No tienes los permisos necesarios para realizar esta acción' });
+        }
+        
+        next(); // ¡Pase usted!
     };
 };
 
