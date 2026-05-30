@@ -14,6 +14,10 @@ const coleccionesRoutes = require('./routes/colecciones.routes');
 const materialesRoutes = require('./routes/materiales.routes');
 const categoriasMaterialRoutes = require('./routes/categoriasMaterial.routes');
 const metalesRoutes = require('./routes/metales.routes');
+const acabadosRoutes = require('./routes/acabados.routes');
+const tiposPiezaRoutes = require('./routes/tiposPieza.routes');
+const configuracionMargenRoutes = require('./routes/configuracionMargen.routes');
+const proveedoresRoutes = require('./routes/proveedores.routes');
 
 // Endpoints
 app.use('/api/auth', authRoutes); 
@@ -29,6 +33,21 @@ app.use('/api/categorias-material', categoriasMaterialRoutes);
 
 // Metales
 app.use('/api/metales', metalesRoutes);
+
+// Acabados
+app.use('/api/acabados', acabadosRoutes);
+
+// Tipos de Pieza
+app.use('/api/tipos-pieza', tiposPiezaRoutes);
+
+// Configuración de Márgenes
+app.use('/api/configuracion-margenes', configuracionMargenRoutes);
+
+// Proveedores
+app.use('/api/proveedores', proveedoresRoutes);
+
+// Gastos Operativos
+app.use('/api/gastos', require('./routes/gastosOperativos.routes'));
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {
