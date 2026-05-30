@@ -4,8 +4,7 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('🌱 Sembrando datos base y de prueba en Kyro...');
 
-    // 1. Limpieza previa (Opcional, evita duplicados de datos de prueba si corres el seed varias veces)
-    // El orden importa para no romper restricciones de clave foránea
+    // 1. Limpiar datos anteriores (el orden importa)
     await prisma.acabado.deleteMany({});
     await prisma.material.deleteMany({});
     await prisma.categoriaMaterial.deleteMany({});
@@ -14,33 +13,27 @@ async function main() {
     await prisma.tipoPieza.deleteMany({});
     await prisma.rol.deleteMany({});
 
-    console.log('🧹 Base de datos limpia de pruebas anteriores.');
+    console.log('🧹 Base de datos limpia.');
 
-    // 2. Sembrar Roles (Estructura fija del sistema)
-    const adminRol = await prisma.rol.create({
-        data: { nombre: 'Administrador', descripcion: 'Control total del sistema' }
-    });
-    await prisma.rol.create({
-        data: { nombre: 'Produccion', descripcion: 'Gestión de talleres y costeo de piezas' }
-    });
-    await prisma.rol.create({
-        data: { nombre: 'Ventas', descripcion: 'Consulta de piezas y control de skus' }
-    });
+    // 2. Roles
+    await prisma.rol.create({ data: { nombre: 'Administrador' } });
+    await prisma.rol.create({ data: { nombre: 'Produccion' } });
+    await prisma.rol.create({ data: { nombre: 'Ventas' } });
 
-    // 3. Sembrar Catálogos Base (Para la receta de la pieza)
+    // 3. Catálogos Base
     const tipoAnillo = await prisma.tipoPieza.create({
         data: { nombre: 'Anillo', codigo: 'ANL' }
     });
     
     const coleccionPR26 = await prisma.coleccion.create({
-        data: { nombre: 'Primavera 2026', codigo: 'PR26', descripcion: 'Lanzamiento de temporada' }
+        data: { nombre: 'Primavera 2026', codigo: 'PR26' }
     });
 
     const catGemas = await prisma.categoriaMaterial.create({
-        data: { nombre: 'Gemas Preciosas', descripcion: 'Piedras preciosas y semipreciosas para engarzar' }
+        data: { nombre: 'Gemas Preciosas' }
     });
 
-    // 4. Sembrar Insumos con Valores Numéricos (Campos Decimal mapeados)
+    // 4. Insumos
     const diamante = await prisma.material.create({
         data: {
             nombre: 'Diamante Corte Brillante 0.5ct',
@@ -65,13 +58,13 @@ async function main() {
 
     const pulidoEspejo = await prisma.acabado.create({
         data: {
-            nombre: 'Pulido Espejo de Alta Calidad',
+            nombre: 'Pulido Espejo',
             tipoCobro: 'POR_PIEZA',
             costoBase: 120.00
         }
     });
 
-    console.log('\n ¡Base de datos poblada con éxito!');
+    console.log('\n✅ ¡Base de datos poblada con éxito!');
     console.log('==================================================');
     console.log('👇 COPIA ESTOS UUIDs PARA TU PRUEBA EN POSTMAN 👇');
     console.log('==================================================');

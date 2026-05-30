@@ -19,24 +19,30 @@ const crearMaterial = async (req, res) => {
         const costoUnitario = data.precioCompra / data.cantidadComprada;
         const stockDisponible = data.cantidadComprada;
 
+        // 1. Armamos el objeto limpio con exactamente los nombres que pide el schema
+        const dataToSave = {
+            nombre: data.nombre,
+            // Usamos categoriaId que es como se llama en la base de datos
+            categoriaId: data.categoria || data.categoriaId, 
+            descripcion: data.descripcion || undefined,
+            imagenUrl: data.imagenUrl || undefined,
+            unidadCompra: data.unidadCompra,
+            precioCompra: data.precioCompra,
+            cantidadComprada: data.cantidadComprada,
+            stockMinimo: data.stockMinimo,
+            stockMaximo: data.stockMaximo || undefined,
+            costoUnitario,
+            stockDisponible,
+            fechaCompra: new Date()
+        };
+
+        // 2. Solo inyectamos el proveedorId si realmente existe (evitamos el 'null' explícito)
+        if (data.proveedorId) {
+            dataToSave.proveedorId = data.proveedorId;
+        }
+
         const nuevoMaterial = await prisma.material.create({
-            data: {
-                proveedorId: data.proveedorId || null,
-                nombre: data.nombre,
-                categoria: data.categoria,
-                descripcion: data.descripcion || null,
-                imagenUrl: data.imagenUrl || null,
-                unidadCompra: data.unidadCompra,
-                precioCompra: data.precioCompra,
-                cantidadComprada: data.cantidadComprada,
-                stockMinimo: data.stockMinimo,
-                stockMaximo: data.stockMaximo || null,
-                
-                // Campos calculados por el backend
-                costoUnitario,
-                stockDisponible,
-                fechaCompra: new Date()
-            },
+            data: dataToSave,
             include: {
                 proveedor: { select: { nombre: true } }
             }

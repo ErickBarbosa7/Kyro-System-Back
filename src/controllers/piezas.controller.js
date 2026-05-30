@@ -97,5 +97,97 @@ const crearPieza = async (req, res) => {
         res.status(500).json({ error: 'Error interno al procesar la receta de la pieza' });
     }
 };
+// GET: Obtener todas las piezas (Resumen para la tabla principal)
+const obtenerPiezas = async (req, res) => {
+    try {
+        const piezas = await prisma.pieza.findMany({
+            include: {
+                tipo: { select: { nombre: true } },
+                coleccion: { select: { nombre: true } }
+            },
+            orderBy: { fechaCreacion: 'desc' }
+        });
+        res.json(piezas);
+    } catch (error) {
+        console.error("Error en obtenerPiezas:", error);
+        res.status(500).json({ error: 'Error interno al obtener las piezas' });
+    }
+};
 
-module.exports = { crearPieza };
+// GET: Obtener una pieza por ID (Con toda su receta de costeo)
+const obtenerPiezaPorId = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const pieza = await prisma.pieza.findUnique({
+            where: { id },
+            include: {
+                tipo: true,
+                coleccion: true,
+                skus: true,
+                costeoMetales: { include: { metal: true } },
+                costeoMateriales: { include: { material: true } },
+                costeoAcabados: { include: { acabado: true } },
+                costeoManoObra: true,
+                costeoGastosAplicados: true
+            }
+        });
+
+        if (!pieza) {
+            return res.status(404).json({ error: 'Pieza no encontrada' });
+        }
+
+        res.json(pieza);
+    } catch (error) {
+        console.error("Error en obtenerPiezaPorId:", error);
+        res.status(500).json({ error: 'Error interno al obtener la pieza' });
+    }
+};
+
+// PUT: Actualizar datos generales de la pieza (Cabecera)
+const actualizarPieza = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const datosPieza = req.body;
+
+        // Ojo: Esto actualiza solo los datos base (nombre, clave, estado, etc.)
+        // Actualizar la "receta" (metales/materiales) suele requerir endpoints específicos 
+        // o una lógica de borrado y re-inserción para mantener el historial limpio.
+        const piezaActualizada = await prisma.pieza.update({
+            where: { id },
+            data: datosPieza
+        });
+
+        res.json(piezaActualizada);
+    } catch (error) {
+        console.error("Error en actualizarPieza:", error);
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Pieza no encontrada' });
+        }
+        if (error.code === 'P2002') {
+            return res.status(400).json({ error: 'La clave de la pieza ya está en uso' });
+        }
+        res.status(500).json({ error: 'Error interno al actualizar la pieza' });
+    }
+};
+
+// DELETE: Baja lógica (Cambiar estado a DESCONTINUADO)
+const eliminarPieza = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await prisma.pieza.update({
+            where: { id },
+            data: { estado: 'DESCONTINUADO' } // Usamos el Enum de tu schema
+        });
+
+        res.json({ mensaje: 'Pieza descontinuada correctamente' });
+    } catch (error) {
+        console.error("Error en eliminarPieza:", error);
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Pieza no encontrada' });
+        }
+        res.status(500).json({ error: 'Error interno al eliminar la pieza' });
+    }
+};
+
+module.exports = { crearPieza, obtenerPiezas, obtenerPiezaPorId, actualizarPieza, eliminarPieza };

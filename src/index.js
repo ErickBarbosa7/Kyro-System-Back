@@ -18,6 +18,7 @@ const acabadosRoutes = require('./routes/acabados.routes');
 const tiposPiezaRoutes = require('./routes/tiposPieza.routes');
 const configuracionMargenRoutes = require('./routes/configuracionMargen.routes');
 const proveedoresRoutes = require('./routes/proveedores.routes');
+const piezasRoutes = require('./routes/piezas.routes');
 
 // Endpoints
 app.use('/api/auth', authRoutes); 
@@ -49,6 +50,8 @@ app.use('/api/proveedores', proveedoresRoutes);
 // Gastos Operativos
 app.use('/api/gastos', require('./routes/gastosOperativos.routes'));
 
+//Piezas
+app.use('/api/piezas', piezasRoutes);
 // Ruta de salud
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Servidor Kyro online y funcionando' });
