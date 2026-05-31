@@ -3,14 +3,25 @@ const prisma = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 // Registro de usuario (Solo para Admin)
+// Registro de usuario (Administrador por defecto)
 const registrarUsuario = async (req, res) => {
     try {
-        const { nombre, apellido, email, password, rolId } = req.body;
+        const { nombre, apellido, email, password } = req.body;
 
         // Verificar si el usuario ya existe
         const usuarioExistente = await prisma.usuario.findUnique({ where: { email } });
         if (usuarioExistente) {
             return res.status(400).json({ error: 'El email ya está registrado' });
+        }
+
+        const rolAdmin = await prisma.rol.findFirst({
+            where: { nombre: 'Administrador' }
+        });
+
+        if (!rolAdmin) {
+            return res.status(500).json({ 
+                error: 'Error: No se encontró el rol "Administrador" en la base de datos. Asegúrate de crearlo primero.' 
+            });
         }
 
         // Encriptar la contraseña (Hash)
@@ -24,7 +35,7 @@ const registrarUsuario = async (req, res) => {
                 apellido,
                 email,
                 password: hashedPassword,
-                rolId
+                rolId: rolAdmin.id 
             },
             include: {
                 rol: true
@@ -35,6 +46,7 @@ const registrarUsuario = async (req, res) => {
         res.status(201).json({ 
             id: nuevoUsuario.id, 
             nombre: nuevoUsuario.nombre, 
+            apellido: nuevoUsuario.apellido, // También podemos devolver el apellido
             email: nuevoUsuario.email,
             rol: nuevoUsuario.rol 
         });
