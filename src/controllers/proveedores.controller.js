@@ -15,8 +15,16 @@ const crearProveedor = async (req, res) => {
 // GET: Obtener todos los Proveedores activos
 const obtenerProveedores = async (req, res) => {
     try {
+        // Leemos el estado desde la URL (ej. ?estado=inactivos)
+        const { estado } = req.query; 
+        
+        let filtroActivo = {};
+        if (estado === 'activos') filtroActivo = { activo: true };
+        else if (estado === 'inactivos') filtroActivo = { activo: false };
+        // Si es 'todos', filtroActivo se queda vacío y Prisma trae todo
+
         const proveedores = await prisma.proveedor.findMany({
-            where: { activo: true },
+            where: filtroActivo,
             orderBy: { nombre: 'asc' }
         });
         res.json(proveedores);
