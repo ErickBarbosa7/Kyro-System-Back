@@ -8,20 +8,18 @@ const crearProveedorSchema = z.object({
 
     // Opcionales
     domicilio: z.string().optional(),
-    
-    // Validamos que si mandan teléfono tenga sentido lógico
-    telefono: z.string()
-        .regex(/^\+?[0-9\s]+$/, "El teléfono solo puede contener números, espacios o el signo +")
-        .min(10, "El teléfono debe tener al menos 10 caracteres")
-        .max(20, "El teléfono es demasiado largo")
-        .optional()
-        .or(z.literal('')), 
+    telefonos: z.array(
+        z.string().regex(/^\+?[0-9\s]+$/, "El teléfono solo puede contener números, espacios o el signo +")
+    )
+    .max(3, "No puedes agregar más de 3 teléfonos")
+    .optional(), 
 
     // Validamos que si mandan email, sea un correo real
-    email: z.string()
-        .email("El formato del correo es inválido")
-        .optional()
-        .or(z.literal('')),
+    emails: z.array(
+        z.string().email("El formato del correo es inválido")
+    )
+    .max(3, "No puedes agregar más de 3 correos")
+    .optional(),
 
     // Validamos que sea un link real
     paginaWeb: z.string()
