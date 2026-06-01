@@ -66,9 +66,24 @@ const eliminarCategoria = async (req, res) => {
     }
 };
 
+// PUT: Reactivar Categoría
+const reactivarCategoria = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await prisma.categoriaMaterial.update({
+            where: { id },
+            data: { activa: true } // La devolvemos a la vida
+        });
+        res.json({ mensaje: 'Categoría reactivada' });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al reactivar la categoría' });
+    }
+};
+
 module.exports = {
     crearCategoria,
     obtenerCategorias,
     actualizarCategoria,
-    eliminarCategoria
+    eliminarCategoria,
+    reactivarCategoria
 };
