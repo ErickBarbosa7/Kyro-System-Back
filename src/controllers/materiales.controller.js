@@ -59,12 +59,21 @@ const crearMaterial = async (req, res) => {
 const obtenerMateriales = async (req, res) => {
     try {
         const materiales = await prisma.material.findMany({
-            where: { activo: true },
-            include: {
-                proveedor: { select: { nombre: true, telefono: true } }
+            where: {
+                activo: true
             },
-            orderBy: { nombre: 'asc' }
-        });
+            include: {
+                proveedor: {
+                    select: {
+                        nombre: true,
+                        telefonos: true,
+                    }
+                }
+            },
+            orderBy: {
+                nombre: "asc"
+            }
+        })
         res.json(materiales);
     } catch (error) {
         console.error('Error en obtenerMateriales:', error);
