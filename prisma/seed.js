@@ -1,86 +1,74 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../src/db'); 
+const bcrypt = require('bcryptjs');
 
 async function main() {
-    console.log('🌱 Sembrando datos base y de prueba en Kyro...');
+  console.log('🌱 Iniciando seeder para el entorno de desarrollo...');
 
-    // 1. Limpiar datos anteriores (el orden importa)
-    await prisma.acabado.deleteMany({});
-    await prisma.material.deleteMany({});
-    await prisma.categoriaMaterial.deleteMany({});
-    await prisma.metal.deleteMany({});
-    await prisma.coleccion.deleteMany({});
-    await prisma.tipoPieza.deleteMany({});
-    await prisma.rol.deleteMany({});
+  // ==========================================
+  // 1. CREAR ROLES
+  // ==========================================
+  const rolAdmin = await prisma.rol.upsert({
+    where: { nombre: 'Administrador' },
+    update: {}, // Si ya existe, no hace nada
+    create: {
+      nombre: 'Administrador',
+      descripcion: 'Acceso total al sistema',
+    },
+  });
 
-    console.log('🧹 Base de datos limpia.');
+  const rolProduccion = await prisma.rol.upsert({
+    where: { nombre: 'Produccion' },
+    update: {},
+    create: {
+      nombre: 'Produccion',
+      descripcion: 'Acceso limitado a inventario y costeo',
+    },
+  });
+  console.log('✅ Roles creados o verificados');
 
-    // 2. Roles
-    await prisma.rol.create({ data: { nombre: 'Administrador' } });
-    await prisma.rol.create({ data: { nombre: 'Produccion' } });
-    await prisma.rol.create({ data: { nombre: 'Ventas' } });
+  // 2. CREAR USUARIO DEV 
+  const saltRounds = 10;
+  const hashedPassword = await bcrypt.hash('admin123', saltRounds);
 
-    // 3. Catálogos Base
-    const tipoAnillo = await prisma.tipoPieza.create({
-        data: { nombre: 'Anillo', codigo: 'ANL' }
-    });
-    
-    const coleccionPR26 = await prisma.coleccion.create({
-        data: { nombre: 'Primavera 2026', codigo: 'PR26' }
-    });
+  const devUser = await prisma.usuario.upsert({
+    where: { email: 'dev@kyro.com' },
+    update: {
+      // Si el usuario ya existe, le reiniciamos la contraseña por si la olvidó
+      password: hashedPassword,
+      rolId: rolAdmin.id
+    },
+    create: {
+      nombre: 'Admin',
+      apellido: 'Developer',
+      email: 'dev@kyro.com',
+      password: hashedPassword,
+      rolId: rolAdmin.id,
+    },
+  });
+  console.log(`✅ Usuario Dev listo -> Email: dev@kyro.com | Pass: admin123`);
 
-    const catGemas = await prisma.categoriaMaterial.create({
-        data: { nombre: 'Gemas Preciosas' }
-    });
 
-    // 4. Insumos
-    const diamante = await prisma.material.create({
-        data: {
-            nombre: 'Diamante Corte Brillante 0.5ct',
-            categoriaId: catGemas.id,
-            unidadCompra: 'Piezas',
-            precioCompra: 12000.00,
-            cantidadComprada: 10,
-            costoUnitario: 12000.00,
-            stockDisponible: 10,
-            stockMinimo: 2
-        }
-    });
+  await prisma.categoriaMaterial.upsert({
+    where: { nombre: 'Piedras Preciosas' },
+    update: {},
+    create: { nombre: 'Piedras Preciosas', descripcion: 'Diamantes, Esmeraldas, etc.' }
+  });
 
-    const oro14k = await prisma.metal.create({
-        data: {
-            nombre: 'Oro 14K Amarillo',
-            precioPorGramo: 850.50,
-            stockDisponible: 300,
-            stockMinimo: 50
-        }
-    });
+  await prisma.categoriaMaterial.upsert({
+    where: { nombre: 'Fornituras' },
+    update: {},
+    create: { nombre: 'Fornituras', descripcion: 'Broches, argollas, etc.' }
+  });
+  console.log('✅ Categorías de prueba generadas');
 
-    const pulidoEspejo = await prisma.acabado.create({
-        data: {
-            nombre: 'Pulido Espejo',
-            tipoCobro: 'POR_PIEZA',
-            costoBase: 120.00
-        }
-    });
-
-    console.log('\n✅ ¡Base de datos poblada con éxito!');
-    console.log('==================================================');
-    console.log('👇 COPIA ESTOS UUIDs PARA TU PRUEBA EN POSTMAN 👇');
-    console.log('==================================================');
-    console.log(`"tipoId": "${tipoAnillo.id}"`);
-    console.log(`"coleccionId": "${coleccionPR26.id}"`);
-    console.log(`"metalId": "${oro14k.id}"`);
-    console.log(`"materialId": "${diamante.id}"`);
-    console.log(`"acabadoId": "${pulidoEspejo.id}"`);
-    console.log('==================================================\n');
+  console.log('🎉 Seeder ejecutado con éxito. Ya puedes iniciar sesión.');
 }
 
 main()
-    .catch((e) => {
-        console.error('🚨 Error ejecutando el seed:', e);
-        process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
-    });
+  .catch((e) => {
+    console.error('❌ Error ejecutando el seeder:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
