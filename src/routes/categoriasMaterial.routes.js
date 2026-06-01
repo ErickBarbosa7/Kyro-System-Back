@@ -3,7 +3,8 @@ const {
     crearCategoria, 
     obtenerCategorias, 
     actualizarCategoria, 
-    eliminarCategoria 
+    eliminarCategoria ,
+    reactivarCategoria
 } = require('../controllers/categoriasMaterial.controller');
 
 const { verificarToken } = require('../middlewares/auth.middleware');
@@ -20,5 +21,5 @@ router.get('/', obtenerCategorias);
 // Para actualizar usamos el mismo esquema pero .partial() por si solo mandan el nombre
 router.put('/:id', validarEsquema(categoriaMaterialSchema.partial()), actualizarCategoria);
 router.delete('/:id', eliminarCategoria);
-
+router.put('/:id/reactivar', reactivarCategoria);
 module.exports = router;

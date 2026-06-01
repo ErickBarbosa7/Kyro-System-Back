@@ -5,7 +5,7 @@ const crearMaterialSchema = z.object({
     proveedorId: z.string().uuid("El ID del proveedor es inválido").optional().or(z.literal('')),
     
     nombre: z.string().min(2, "El nombre es obligatorio"),
-    categoria: z.string().min(2, "La categoría es obligatoria (ej. Piedras, Hilos)"),
+    categoriaId: z.string().min(2, "La categoría es obligatoria (ej. Piedras, Hilos)"),
     descripcion: z.string().optional(),
     unidadCompra: z.string().min(1, "La unidad es obligatoria (ej. Gramos, Piezas)"),
     
