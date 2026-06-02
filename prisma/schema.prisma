@@ -90,7 +90,8 @@ model Material {
   categoria        CategoriaMaterial @relation(fields: [categoriaId], references: [id])
   descripcion      String?    @db.Text
   imagenUrl        String?    @map("imagen_url")
-  unidadCompra     String     @map("unidad_compra")
+  unidadMedidaId   String            @map("unidad_medida_id") @db.Uuid
+  unidadMedida     UnidadMedida      @relation(fields: [unidadMedidaId], references: [id])
   precioCompra     Decimal    @map("precio_compra") @db.Decimal(12, 4)
   cantidadComprada Decimal    @map("cantidad_comprada") @db.Decimal(12, 4)
   costoUnitario    Decimal    @map("costo_unitario") @db.Decimal(12, 4)
@@ -117,6 +118,16 @@ model CategoriaMaterial {
   materiales  Material[]
 
   @@map("categorias_material")
+}
+
+model UnidadMedida {
+  id          String     @id @default(uuid()) @db.Uuid
+  nombre      String     @unique // Ej: "Gramo", "Pieza Ch", "Pieza M"
+  activa      Boolean    @default(true)
+
+  materiales  Material[]
+
+  @@map("unidades_medida")
 }
 
 model Metal {

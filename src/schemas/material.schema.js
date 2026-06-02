@@ -7,7 +7,7 @@ const crearMaterialSchema = z.object({
     nombre: z.string().min(2, "El nombre es obligatorio"),
     categoriaId: z.string().min(2, "La categoría es obligatoria (ej. Piedras, Hilos)"),
     descripcion: z.string().optional(),
-    unidadCompra: z.string().min(1, "La unidad es obligatoria (ej. Gramos, Piezas)"),
+    unidadMedidaId: z.string({ required_error: "La unidad de medida es obligatoria" }).uuid("Debe ser un ID válido"),
     
     // Coerce.number() convierte strings a números automáticamente
     precioCompra: z.coerce.number().positive("El precio de compra debe ser mayor a 0"),

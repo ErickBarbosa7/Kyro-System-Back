@@ -20,15 +20,31 @@ const crearCategoria = async (req, res) => {
     }
 };
 
-// GET: Listar Categorías (Para llenar el menú desplegable)
+// GET: Listar Categorías 
 const obtenerCategorias = async (req, res) => {
     try {
+        // 1. Leemos el parámetro que manda React por la URL (ej. ?estado=inactivas)
+        const { estado } = req.query;
+
+        // 2. Por defecto, le decimos a Prisma que busque las activas
+        let filtro = { activa: true }; 
+
+        // 3. Si React pide las inactivas, cambiamos el filtro
+        if (estado === 'inactivas') {
+            filtro = { activa: false };
+        } else if (estado === 'todas') {
+            filtro = {}; // Trae ambas
+        }
+
+        // 4. Hacemos la consulta a la base de datos con el filtro correcto
         const categorias = await prisma.categoriaMaterial.findMany({
-            where: { activa: true },
+            where: filtro,
             orderBy: { nombre: 'asc' }
         });
+        
         res.json(categorias);
     } catch (error) {
+        console.error('Error en obtenerCategorias:', error);
         res.status(500).json({ error: 'Error al obtener las categorías' });
     }
 };

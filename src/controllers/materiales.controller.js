@@ -22,11 +22,11 @@ const crearMaterial = async (req, res) => {
         // 1. Armamos el objeto limpio con exactamente los nombres que pide el schema
         const dataToSave = {
             nombre: data.nombre,
-            // Usamos categoriaId que es como se llama en la base de datos
             categoriaId: data.categoria || data.categoriaId, 
             descripcion: data.descripcion || undefined,
             imagenUrl: data.imagenUrl || undefined,
-            unidadCompra: data.unidadCompra,
+            // AHORA USAMOS EL ID DE LA UNIDAD DE MEDIDA
+            unidadMedidaId: data.unidadMedidaId, 
             precioCompra: data.precioCompra,
             cantidadComprada: data.cantidadComprada,
             stockMinimo: data.stockMinimo,
@@ -44,7 +44,9 @@ const crearMaterial = async (req, res) => {
         const nuevoMaterial = await prisma.material.create({
             data: dataToSave,
             include: {
-                proveedor: { select: { nombre: true } }
+                proveedor: { select: { nombre: true } },
+                // AÑADIMOS LA UNIDAD DE MEDIDA EN LA RESPUESTA
+                unidadMedida: { select: { nombre: true } }
             }
         });
 
@@ -55,29 +57,68 @@ const crearMaterial = async (req, res) => {
     }
 };
 
-// GET Obtener todos los materiales
+/// GET Obtener todos los materiales (Ahora soporta la papelera)
 const obtenerMateriales = async (req, res) => {
     try {
+        const { estado } = req.query; // Leemos lo que manda React
+        
+        let filtro = { activo: true }; // Por defecto, solo activos
+
+        if (estado === 'inactivos') {
+            filtro = { activo: false }; // Papelera
+        } else if (estado === 'todos') {
+            filtro = {}; // Todos
+        }
+
         const materiales = await prisma.material.findMany({
-            where: {
-                activo: true
-            },
+            where: filtro,
             include: {
                 proveedor: {
                     select: {
                         nombre: true,
                         telefonos: true,
                     }
+                },
+                // INCLUIMOS LA UNIDAD PARA MOSTRARLA EN LA TABLA
+                unidadMedida: {
+                    select: {
+                        nombre: true
+                    }
+                },
+                categoria: {
+                    select: {
+                        nombre: true
+                    }
                 }
             },
             orderBy: {
                 nombre: "asc"
             }
-        })
+        });
         res.json(materiales);
     } catch (error) {
         console.error('Error en obtenerMateriales:', error);
         res.status(500).json({ error: 'Error interno al obtener los materiales' });
+    }
+};
+
+// PUT: Reactivar material (Sacar de la papelera)
+const reactivarMaterial = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await prisma.material.update({
+            where: { id },
+            data: { activo: true }
+        });
+
+        res.json({ mensaje: 'Material reactivado correctamente' });
+    } catch (error) {
+        console.error('Error en reactivarMaterial:', error);
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Material no encontrado' });
+        }
+        res.status(500).json({ error: 'Error interno al reactivar el material' });
     }
 };
 
@@ -89,7 +130,10 @@ const obtenerMaterialPorId = async (req, res) => {
         const material = await prisma.material.findUnique({
             where: { id },
             include: {
-                proveedor: { select: { nombre: true, email: true } }
+                proveedor: { select: { nombre: true, email: true } },
+                // AÑADIMOS LA UNIDAD
+                unidadMedida: { select: { nombre: true } },
+                categoria: { select: { nombre: true } }
             }
         });
 
@@ -128,21 +172,20 @@ const actualizarMaterial = async (req, res) => {
         }
 
         // 3. Recalcular costo unitario SOLO SI se modificaron el precio o la cantidad original
-        // Nota: Esto es para correcciones de captura. Las recargas de stock reales
-        // en el futuro deberán hacerse mediante la tabla de "InventarioMovimiento".
         let nuevoCostoUnitario = materialActual.costoUnitario;
         if (data.precioCompra !== undefined && data.cantidadComprada !== undefined) {
             nuevoCostoUnitario = data.precioCompra / data.cantidadComprada;
         }
 
+        const updateData = { ...data, costoUnitario: nuevoCostoUnitario };
+        delete updateData.unidadCompra; // Nos aseguramos de no mandar el campo viejo a Prisma
+
         const materialActualizado = await prisma.material.update({
             where: { id },
-            data: {
-                ...data,
-                costoUnitario: nuevoCostoUnitario
-            },
+            data: updateData,
             include: {
-                proveedor: { select: { nombre: true } }
+                proveedor: { select: { nombre: true } },
+                unidadMedida: { select: { nombre: true } } // Retornamos la unidad actualizada
             }
         });
 
@@ -158,8 +201,6 @@ const eliminarMaterial = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // No borramos de la base de datos (para no romper las recetas de Costeo)
-        // Solo lo ocultamos cambiando activo a false
         await prisma.material.update({
             where: { id },
             data: { activo: false }
@@ -180,5 +221,6 @@ module.exports = {
     obtenerMateriales,
     obtenerMaterialPorId,
     actualizarMaterial,
-    eliminarMaterial
+    eliminarMaterial,
+    reactivarMaterial
 };

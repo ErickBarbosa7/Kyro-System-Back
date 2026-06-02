@@ -1,5 +1,5 @@
 const prisma = require('../src/db'); 
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs'); 
 
 async function main() {
   console.log('🌱 Iniciando seeder para el entorno de desarrollo...');
@@ -26,14 +26,15 @@ async function main() {
   });
   console.log('✅ Roles creados o verificados');
 
-  // 2. CREAR USUARIO DEV 
+  // ==========================================
+  // 2. CREAR USUARIO DEV
+  // ==========================================
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash('admin123', saltRounds);
 
   const devUser = await prisma.usuario.upsert({
     where: { email: 'dev@kyro.com' },
     update: {
-      // Si el usuario ya existe, le reiniciamos la contraseña por si la olvidó
       password: hashedPassword,
       rolId: rolAdmin.id
     },
@@ -47,7 +48,9 @@ async function main() {
   });
   console.log(`✅ Usuario Dev listo -> Email: dev@kyro.com | Pass: admin123`);
 
-
+  // ==========================================
+  // 3. DATOS DE PRUEBA: CATEGORÍAS
+  // ==========================================
   await prisma.categoriaMaterial.upsert({
     where: { nombre: 'Piedras Preciosas' },
     update: {},
@@ -60,6 +63,20 @@ async function main() {
     create: { nombre: 'Fornituras', descripcion: 'Broches, argollas, etc.' }
   });
   console.log('✅ Categorías de prueba generadas');
+
+  // ==========================================
+  // 4. DATOS DE PRUEBA: UNIDADES DE MEDIDA (¡NUEVO!)
+  // ==========================================
+  const unidadesBasicas = ['PIEZA', 'GRAMO', 'PAR', 'LOTE', 'TIRA', 'PIEZA CH', 'PIEZA M', 'PIEZA G'];
+  
+  for (const nombreUnidad of unidadesBasicas) {
+    await prisma.unidadMedida.upsert({
+      where: { nombre: nombreUnidad },
+      update: {},
+      create: { nombre: nombreUnidad }
+    });
+  }
+  console.log('✅ Unidades de Medida base generadas');
 
   console.log('🎉 Seeder ejecutado con éxito. Ya puedes iniciar sesión.');
 }
