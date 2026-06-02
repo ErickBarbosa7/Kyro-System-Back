@@ -19,7 +19,7 @@ const tiposPiezaRoutes = require('./routes/tiposPieza.routes');
 const configuracionMargenRoutes = require('./routes/configuracionMargen.routes');
 const proveedoresRoutes = require('./routes/proveedores.routes');
 const piezasRoutes = require('./routes/piezas.routes');
-
+const unidadesRoutes = require('./routes/unidadesMedida.routes'); 
 // Endpoints
 app.use('/api/auth', authRoutes); 
 
@@ -34,6 +34,9 @@ app.use('/api/categorias-material', categoriasMaterialRoutes);
 
 // Metales
 app.use('/api/metales', metalesRoutes);
+
+// Unidades de Medida
+app.use('/api/unidades', unidadesRoutes);
 
 // Acabados
 app.use('/api/acabados', acabadosRoutes);

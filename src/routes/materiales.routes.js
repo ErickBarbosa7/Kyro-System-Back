@@ -4,7 +4,8 @@ const {
     obtenerMateriales, 
     obtenerMaterialPorId, 
     actualizarMaterial, 
-    eliminarMaterial 
+    eliminarMaterial,
+    reactivarMaterial
 } = require('../controllers/materiales.controller');
 
 const { verificarToken } = require('../middlewares/auth.middleware');
@@ -22,5 +23,6 @@ router.get('/:id', obtenerMaterialPorId);
 // Nota: Usamos el mismo esquema pero parcial para actualizar
 router.put('/:id', validarEsquema(crearMaterialSchema.partial()), actualizarMaterial);
 router.delete('/:id', eliminarMaterial);
+router.put('/:id/reactivar', reactivarMaterial);
 
 module.exports = router;
