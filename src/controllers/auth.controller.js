@@ -2,8 +2,8 @@ require('dotenv').config();
 const prisma = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// Registro de usuario (Solo para Admin)
-// Registro de usuario (Administrador por defecto)
+
+// Registro de usuario (Administrador por defecto o Auto-creado)
 const registrarUsuario = async (req, res) => {
     try {
         const { nombre, apellido, email, password } = req.body;
@@ -14,13 +14,19 @@ const registrarUsuario = async (req, res) => {
             return res.status(400).json({ error: 'El email ya está registrado' });
         }
 
-        const rolAdmin = await prisma.rol.findFirst({
+        // Buscar el rol Administrador
+        let rolAdmin = await prisma.rol.findFirst({
             where: { nombre: 'Administrador' }
         });
 
+        // Si la base de datos es nueva y el rol no existe, lo creamos automáticamente
         if (!rolAdmin) {
-            return res.status(500).json({ 
-                error: 'Error: No se encontró el rol "Administrador" en la base de datos. Asegúrate de crearlo primero.' 
+            rolAdmin = await prisma.rol.create({
+                data: {
+                    nombre: 'Administrador'
+                    // Si tu schema tiene una descripción obligatoria para Rol, descomenta la siguiente línea:
+                    // , descripcion: 'Acceso total al sistema'
+                }
             });
         }
 
@@ -42,11 +48,11 @@ const registrarUsuario = async (req, res) => {
             }
         });
 
-        // Retornar datos sin la contraseña
+        // Retornar datos sin la contraseña por seguridad
         res.status(201).json({ 
             id: nuevoUsuario.id, 
             nombre: nuevoUsuario.nombre, 
-            apellido: nuevoUsuario.apellido, // También podemos devolver el apellido
+            apellido: nuevoUsuario.apellido,
             email: nuevoUsuario.email,
             rol: nuevoUsuario.rol 
         });
@@ -102,6 +108,7 @@ const login = async (req, res) => {
             usuario: {
                 id: usuario.id,
                 nombre: usuario.nombre,
+                apellido: usuario.apellido, // También lo enviamos en el login por si lo ocupas en el navbar
                 email: usuario.email,
                 rol: usuario.rol.nombre
             }
