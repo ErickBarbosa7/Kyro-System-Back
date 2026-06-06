@@ -1,12 +1,40 @@
 const prisma = require('../db');
+const cloudinary = require('cloudinary').v2; 
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+// Helper para subir el buffer de memoria a Cloudinary usando Streams
+const subirACloudinary = (fileBuffer) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                folder: 'erp-joyeria/materiales',
+                transformation: [{ quality: 'auto', fetch_format: 'auto' }]
+            },
+            (error, result) => {
+                if (error) return reject(error);
+                resolve(result.secure_url);
+            }
+        );
+        uploadStream.end(fileBuffer);
+    });
+};
 
 // POST: Crear material 
 const crearMaterial = async (req, res) => {
     try {
         const data = req.body;
 
-        // Validar que el proveedor exista (si se envió uno)
-        if (data.proveedorId) {
+        const precioCompra = Number(data.precioCompra);
+        const cantidadComprada = Number(data.cantidadComprada);
+        const stockMinimo = data.stockMinimo ? Number(data.stockMinimo) : 0;
+        const stockMaximo = (data.stockMaximo === null || data.stockMaximo === '') 
+            ? null 
+            : (data.stockMaximo !== undefined ? Number(data.stockMaximo) : null);
+
+        if (data.proveedorId && data.proveedorId.trim() !== '') {
             const proveedorExiste = await prisma.proveedor.findUnique({
                 where: { id: data.proveedorId }
             });
@@ -15,29 +43,32 @@ const crearMaterial = async (req, res) => {
             }
         }
 
-        // Lógica Matemática Financiera
-        const costoUnitario = data.precioCompra / data.cantidadComprada;
-        const stockDisponible = data.cantidadComprada;
+        let imagenUrl = undefined;
+        if (req.file) {
+            imagenUrl = await subirACloudinary(req.file.buffer);
+        }
 
-        // 1. Armamos el objeto limpio con exactamente los nombres que pide el schema
+        // LÓGICA MATEMÁTICA PROTEGIDA (Previene Infinity y Decimales infinitos)
+        const cantidadSegura = cantidadComprada > 0 ? cantidadComprada : 1; 
+        const costoUnitario = Number((precioCompra / cantidadSegura).toFixed(4));
+        const stockDisponible = cantidadComprada;
+
         const dataToSave = {
             nombre: data.nombre,
             categoriaId: data.categoria || data.categoriaId, 
             descripcion: data.descripcion || undefined,
-            imagenUrl: data.imagenUrl || undefined,
-            // AHORA USAMOS EL ID DE LA UNIDAD DE MEDIDA
+            imagenUrl: imagenUrl, 
             unidadMedidaId: data.unidadMedidaId, 
-            precioCompra: data.precioCompra,
-            cantidadComprada: data.cantidadComprada,
-            stockMinimo: data.stockMinimo,
-            stockMaximo: data.stockMaximo || undefined,
+            precioCompra,
+            cantidadComprada,
+            stockMinimo,
+            stockMaximo,
             costoUnitario,
             stockDisponible,
             fechaCompra: new Date()
         };
 
-        // 2. Solo inyectamos el proveedorId si realmente existe (evitamos el 'null' explícito)
-        if (data.proveedorId) {
+        if (data.proveedorId && data.proveedorId.trim() !== '') {
             dataToSave.proveedorId = data.proveedorId;
         }
 
@@ -45,7 +76,6 @@ const crearMaterial = async (req, res) => {
             data: dataToSave,
             include: {
                 proveedor: { select: { nombre: true } },
-                // AÑADIMOS LA UNIDAD DE MEDIDA EN LA RESPUESTA
                 unidadMedida: { select: { nombre: true } }
             }
         });
@@ -57,17 +87,17 @@ const crearMaterial = async (req, res) => {
     }
 };
 
-/// GET Obtener todos los materiales (Ahora soporta la papelera)
+/// GET Obtener todos los materiales (Soporta la papelera)
 const obtenerMateriales = async (req, res) => {
     try {
-        const { estado } = req.query; // Leemos lo que manda React
+        const { estado } = req.query; 
         
-        let filtro = { activo: true }; // Por defecto, solo activos
+        let filtro = { activo: true }; 
 
         if (estado === 'inactivos') {
-            filtro = { activo: false }; // Papelera
+            filtro = { activo: false }; 
         } else if (estado === 'todos') {
-            filtro = {}; // Todos
+            filtro = {}; 
         }
 
         const materiales = await prisma.material.findMany({
@@ -79,7 +109,6 @@ const obtenerMateriales = async (req, res) => {
                         telefonos: true,
                     }
                 },
-                // INCLUIMOS LA UNIDAD PARA MOSTRARLA EN LA TABLA
                 unidadMedida: {
                     select: {
                         nombre: true
@@ -122,7 +151,6 @@ const reactivarMaterial = async (req, res) => {
     }
 };
 
-
 // GET Obtener material por ID
 const obtenerMaterialPorId = async (req, res) => {
     try {
@@ -131,7 +159,6 @@ const obtenerMaterialPorId = async (req, res) => {
             where: { id },
             include: {
                 proveedor: { select: { nombre: true, email: true } },
-                // AÑADIMOS LA UNIDAD
                 unidadMedida: { select: { nombre: true } },
                 categoria: { select: { nombre: true } }
             }
@@ -148,21 +175,18 @@ const obtenerMaterialPorId = async (req, res) => {
     }
 };
 
-
 // PUT: Actualizar material
 const actualizarMaterial = async (req, res) => {
     try {
         const { id } = req.params;
         const data = req.body;
 
-        // 1. Verificar si el material existe
         const materialActual = await prisma.material.findUnique({ where: { id } });
-        if (!materialActual || !materialActual.activo) {
+        if (!materialActual) {
             return res.status(404).json({ error: 'Material no encontrado' });
         }
 
-        // 2. Verificar el proveedor si lo están intentando cambiar
-        if (data.proveedorId && data.proveedorId !== materialActual.proveedorId) {
+        if (data.proveedorId && data.proveedorId.trim() !== '' && data.proveedorId !== materialActual.proveedorId) {
             const proveedorExiste = await prisma.proveedor.findUnique({
                 where: { id: data.proveedorId }
             });
@@ -171,21 +195,46 @@ const actualizarMaterial = async (req, res) => {
             }
         }
 
-        // 3. Recalcular costo unitario SOLO SI se modificaron el precio o la cantidad original
-        let nuevoCostoUnitario = materialActual.costoUnitario;
-        if (data.precioCompra !== undefined && data.cantidadComprada !== undefined) {
-            nuevoCostoUnitario = data.precioCompra / data.cantidadComprada;
+        let nuevaImagenUrl = materialActual.imagenUrl;
+        if (req.file) {
+            nuevaImagenUrl = await subirACloudinary(req.file.buffer);
         }
 
-        const updateData = { ...data, costoUnitario: nuevoCostoUnitario };
-        delete updateData.unidadCompra; // Nos aseguramos de no mandar el campo viejo a Prisma
+        let stockMaximo = materialActual.stockMaximo; 
+        if (data.stockMaximo === null || data.stockMaximo === '') {
+            stockMaximo = null; 
+        } else if (data.stockMaximo !== undefined) {
+            stockMaximo = Number(data.stockMaximo); 
+        }
+
+        const precioCompra = data.precioCompra !== undefined && data.precioCompra !== '' ? Number(data.precioCompra) : materialActual.precioCompra;
+        const cantidadComprada = data.cantidadComprada !== undefined && data.cantidadComprada !== '' ? Number(data.cantidadComprada) : materialActual.cantidadComprada;
+        const stockMinimo = data.stockMinimo !== undefined && data.stockMinimo !== '' ? Number(data.stockMinimo) : materialActual.stockMinimo;
+
+        // LÓGICA MATEMÁTICA PROTEGIDA (Previene Infinity y Decimales infinitos)
+        const cantidadSegura = cantidadComprada > 0 ? cantidadComprada : 1;
+        const nuevoCostoUnitario = Number((precioCompra / cantidadSegura).toFixed(4));
+
+        const updateData = {
+            nombre: data.nombre || materialActual.nombre,
+            categoriaId: data.categoriaId || materialActual.categoriaId,
+            unidadMedidaId: data.unidadMedidaId || materialActual.unidadMedidaId,
+            proveedorId: (data.proveedorId && data.proveedorId.trim() !== '') ? data.proveedorId : null,
+            descripcion: data.descripcion !== undefined ? data.descripcion : materialActual.descripcion,
+            precioCompra,
+            cantidadComprada,
+            stockMinimo,
+            stockMaximo,
+            costoUnitario: nuevoCostoUnitario,
+            imagenUrl: nuevaImagenUrl
+        };
 
         const materialActualizado = await prisma.material.update({
             where: { id },
             data: updateData,
             include: {
                 proveedor: { select: { nombre: true } },
-                unidadMedida: { select: { nombre: true } } // Retornamos la unidad actualizada
+                unidadMedida: { select: { nombre: true } } 
             }
         });
 

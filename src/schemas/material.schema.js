@@ -13,7 +13,7 @@ const crearMaterialSchema = z.object({
     precioCompra: z.coerce.number().positive("El precio de compra debe ser mayor a 0"),
     cantidadComprada: z.coerce.number().positive("La cantidad debe ser mayor a 0"),
     
-    stockMinimo: z.coerce.number().nonnegative("El stock mínimo no puede ser negativo"),
+    stockMinimo: z.coerce.number().nonnegative("El stock mínimo no puede ser negativo").transform(val => (val === '' ? null : val)).optional(),
     stockMaximo: z.coerce.number().optional(),
     
     imagenUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal(''))
