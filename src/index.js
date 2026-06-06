@@ -1,4 +1,4 @@
-require('dotenv').config(); 
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
@@ -20,6 +20,8 @@ const configuracionMargenRoutes = require('./routes/configuracionMargen.routes')
 const proveedoresRoutes = require('./routes/proveedores.routes');
 const piezasRoutes = require('./routes/piezas.routes');
 const unidadesRoutes = require('./routes/unidadesMedida.routes'); 
+const gastosOperativosRoutes = require('./routes/gastosOperativos.routes');
+
 // Endpoints
 app.use('/api/auth', authRoutes); 
 
@@ -51,7 +53,7 @@ app.use('/api/configuracion-margenes', configuracionMargenRoutes);
 app.use('/api/proveedores', proveedoresRoutes);
 
 // Gastos Operativos
-app.use('/api/gastos', require('./routes/gastosOperativos.routes'));
+app.use('/api/gastos-operativos', gastosOperativosRoutes);
 
 //Piezas
 app.use('/api/piezas', piezasRoutes);
