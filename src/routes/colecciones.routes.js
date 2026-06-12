@@ -4,7 +4,8 @@ const {
     obtenerColeccionPorId,
     crearColeccion,
     actualizarColeccion,
-    eliminarColeccion
+    eliminarColeccion,
+    reactivarColeccion 
 } = require('../controllers/colecciones.controller');
 
 // Importamos los guardias
@@ -18,5 +19,6 @@ router.get('/:id', verificarToken, obtenerColeccionPorId);
 router.post('/', verificarToken, verificarRol('ADMINISTRADOR', 'PRODUCCION'), crearColeccion);
 router.put('/:id', verificarToken, verificarRol('ADMINISTRADOR', 'PRODUCCION'), actualizarColeccion);
 router.delete('/:id', verificarToken, verificarRol('ADMINISTRADOR'), eliminarColeccion);
+router.put('/:id/reactivar', verificarToken, verificarRol('ADMINISTRADOR'), reactivarColeccion);
 
 module.exports = router;

@@ -1,11 +1,23 @@
 require('dotenv').config();
 const prisma = require('../db');
 
-// GET: Listar todas activas
+// GET: Listar colecciones filtradas por estado
 const obtenerColecciones = async (req, res) => {
     try {
+        const { estado } = req.query;
+        let filtro = {};
+
+        // Configuramos el filtro según lo que pida el frontend
+        if (estado === 'inactivos') {
+            filtro = { activa: false };
+        } else if (estado === 'todos') {
+            filtro = {}; // Sin filtro, trae todo
+        } else {
+            filtro = { activa: true }; // Comportamiento por defecto
+        }
+
         const colecciones = await prisma.coleccion.findMany({
-            where: { activa: true },
+            where: filtro,
             orderBy: { nombre: 'asc' }
         });
         res.json(colecciones);
@@ -101,10 +113,31 @@ const eliminarColeccion = async (req, res) => {
     }
 };
 
+// PUT/PATCH: Reactivar un registro (sacar de la papelera)
+const reactivarColeccion = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const coleccionReactivada = await prisma.coleccion.update({
+            where: { id },
+            data: { activa: true }
+        });
+
+        res.json({ message: 'Colección restaurada correctamente', coleccion: coleccionReactivada });
+    } catch (error) {
+        console.error('reactivarColeccion err:', error);
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Colección no encontrada' });
+        }
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+};
+
 module.exports = {
     obtenerColecciones,
     obtenerColeccionPorId,
     crearColeccion,
     actualizarColeccion,
-    eliminarColeccion
+    eliminarColeccion,
+    reactivarColeccion
 };
