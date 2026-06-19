@@ -6,6 +6,8 @@ const crearPieza = async (req, res) => {
         // Extraemos los arreglos de la receta y los datos de la pieza base
         const { skus, metales, materiales, acabados, manoObra, ...datosPieza } = req.body;
 
+        if (!datosPieza.estado) datosPieza.estado = 'ACTIVO';
+
         // Iniciamos la transacción interactiva ("tx" es la versión transaccional de "prisma")
         const resultado = await prisma.$transaction(async (tx) => {
             
@@ -59,8 +61,26 @@ const crearPieza = async (req, res) => {
                 });
             }
 
-            // 5. Guardar Mano de Obra
-            for (const item of manoObra) {
+            // 5. (antes de Mano Obra) Guardar y calcular Acabados
+            for (const item of acabados || []) {
+                const acabadoDb = await tx.acabado.findUnique({ where: { id: item.acabadoId } });
+                if (!acabadoDb) throw new Error(`El acabado con ID ${item.acabadoId} no existe`);
+
+                const subtotal = Number(item.cantidad) * Number(acabadoDb.costoBase);
+
+                await tx.costeoAcabado.create({
+                    data: {
+                        piezaId: nuevaPieza.id,
+                        acabadoId: item.acabadoId,
+                        cantidad: item.cantidad,
+                        costoUnitarioSnapshot: acabadoDb.costoBase,
+                        subtotal: subtotal
+                    }
+                });
+            }
+
+            // 6. Guardar Mano de Obra
+            for (const item of manoObra || []) {
                 const subtotal = Number(item.tiempoHrs) * Number(item.costoPorHora);
                 
                 await tx.costeoManoObra.create({
@@ -73,8 +93,6 @@ const crearPieza = async (req, res) => {
                     }
                 });
             }
-
-            // (Omitimos Acabados por ahora para mantener el ejemplo claro, pero la lógica es idéntica)
 
             return nuevaPieza;
         });
@@ -97,10 +115,21 @@ const crearPieza = async (req, res) => {
         res.status(500).json({ error: 'Error interno al procesar la receta de la pieza' });
     }
 };
-// GET: Obtener todas las piezas (Resumen para la tabla principal)
+// GET: Obtener todas las piezas (Soporta papelera)
 const obtenerPiezas = async (req, res) => {
     try {
+        const { estado } = req.query;
+
+        let filtro = { estado: 'ACTIVO' };
+
+        if (estado === 'inactivos') {
+            filtro = { estado: 'DESCONTINUADO' };
+        } else if (estado === 'todos') {
+            filtro = {};
+        }
+
         const piezas = await prisma.pieza.findMany({
+            where: filtro,
             include: {
                 tipo: { select: { nombre: true } },
                 coleccion: { select: { nombre: true } }
@@ -190,4 +219,94 @@ const eliminarPieza = async (req, res) => {
     }
 };
 
-module.exports = { crearPieza, obtenerPiezas, obtenerPiezaPorId, actualizarPieza, eliminarPieza };
+// PUT: Reactivar Pieza (Volver a ACTIVO)
+const reactivarPieza = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await prisma.pieza.update({
+            where: { id },
+            data: { estado: 'ACTIVO' }
+        });
+
+        res.json({ mensaje: 'Pieza reactivada correctamente' });
+    } catch (error) {
+        console.error("Error en reactivarPieza:", error);
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Pieza no encontrada' });
+        }
+        res.status(500).json({ error: 'Error interno al reactivar la pieza' });
+    }
+};
+
+// PUT: Actualizar pieza completa (cabecera + receta)
+const actualizarPiezaCompleta = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { metales, materiales, acabados, manoObra, ...datosPieza } = req.body;
+
+        const resultado = await prisma.$transaction(async (tx) => {
+            // 1. Actualizar cabecera de la pieza
+            const piezaActualizada = await tx.pieza.update({
+                where: { id },
+                data: datosPieza
+            });
+
+            // 2. Eliminar costeo anterior
+            await tx.costeoMetal.deleteMany({ where: { piezaId: id } });
+            await tx.costeoMaterial.deleteMany({ where: { piezaId: id } });
+            await tx.costeoAcabado.deleteMany({ where: { piezaId: id } });
+            await tx.costeoManoObra.deleteMany({ where: { piezaId: id } });
+
+            // 3. Re-crear metales
+            for (const item of metales || []) {
+                const metalDb = await tx.metal.findUnique({ where: { id: item.metalId } });
+                if (!metalDb) throw new Error(`Metal ${item.metalId} no existe`);
+                const subtotal = Number(item.pesoUtilizadoGr) * Number(metalDb.precioPorGramo);
+                await tx.costeoMetal.create({
+                    data: { piezaId: id, metalId: item.metalId, pesoUtilizadoGr: item.pesoUtilizadoGr, precioGramoSnapshot: metalDb.precioPorGramo, subtotal }
+                });
+            }
+
+            // 4. Re-crear materiales
+            for (const item of materiales || []) {
+                const materialDb = await tx.material.findUnique({ where: { id: item.materialId } });
+                if (!materialDb) throw new Error(`Material ${item.materialId} no existe`);
+                const subtotal = Number(item.cantidadUtilizada) * Number(materialDb.costoUnitario);
+                await tx.costeoMaterial.create({
+                    data: { piezaId: id, materialId: item.materialId, cantidadUtilizada: item.cantidadUtilizada, costoUnitarioSnapshot: materialDb.costoUnitario, subtotal }
+                });
+            }
+
+            // 5. Re-crear acabados
+            for (const item of acabados || []) {
+                const acabadoDb = await tx.acabado.findUnique({ where: { id: item.acabadoId } });
+                if (!acabadoDb) throw new Error(`Acabado ${item.acabadoId} no existe`);
+                const subtotal = Number(item.cantidad) * Number(acabadoDb.costoBase);
+                await tx.costeoAcabado.create({
+                    data: { piezaId: id, acabadoId: item.acabadoId, cantidad: item.cantidad, costoUnitarioSnapshot: acabadoDb.costoBase, subtotal }
+                });
+            }
+
+            // 6. Re-crear mano de obra
+            for (const item of manoObra || []) {
+                const subtotal = Number(item.tiempoHrs) * Number(item.costoPorHora);
+                await tx.costeoManoObra.create({
+                    data: { piezaId: id, actividad: item.actividad, tiempoHrs: item.tiempoHrs, costoPorHora: item.costoPorHora, subtotal }
+                });
+            }
+
+            return piezaActualizada;
+        });
+
+        res.json({ mensaje: 'Pieza y receta actualizadas exitosamente', piezaId: resultado.id });
+    } catch (error) {
+        console.error("Error en actualizarPiezaCompleta:", error);
+        if (error.message.includes('no existe')) {
+            return res.status(404).json({ error: error.message });
+        }
+        res.status(500).json({ error: 'Error interno al actualizar la receta de la pieza' });
+    }
+};
+
+module.exports = { crearPieza, obtenerPiezas, obtenerPiezaPorId, actualizarPieza, eliminarPieza, reactivarPieza, actualizarPiezaCompleta };

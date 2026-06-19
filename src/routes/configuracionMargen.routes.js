@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { crearConfiguracion, obtenerConfiguraciones, actualizarConfiguracion, eliminarConfiguracion } = require('../controllers/configuracionMargen.controller');
+const { crearConfiguracion, obtenerConfiguraciones, actualizarConfiguracion, eliminarConfiguracion, reactivarConfiguracion } = require('../controllers/configuracionMargen.controller');
 const { verificarToken } = require('../middlewares/auth.middleware');
 const { validarEsquema } = require('../middlewares/validator.middleware');
 const { crearConfiguracionMargenSchema } = require('../schemas/configuracionMargen.schema');
@@ -11,5 +11,6 @@ router.post('/', validarEsquema(crearConfiguracionMargenSchema), crearConfigurac
 router.get('/', obtenerConfiguraciones);
 router.put('/:id', validarEsquema(crearConfiguracionMargenSchema.partial()), actualizarConfiguracion);
 router.delete('/:id', eliminarConfiguracion);
+router.put('/:id/reactivar', reactivarConfiguracion);
 
 module.exports = router;

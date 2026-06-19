@@ -20,8 +20,14 @@ const tiposPiezaRoutes = require('./routes/tiposPieza.routes');
 const configuracionMargenRoutes = require('./routes/configuracionMargen.routes');
 const proveedoresRoutes = require('./routes/proveedores.routes');
 const piezasRoutes = require('./routes/piezas.routes');
+const costeoRoutes = require('./routes/costeo.routes');
 const unidadesRoutes = require('./routes/unidadesMedida.routes'); 
 const gastosOperativosRoutes = require('./routes/gastosOperativos.routes');
+const stockRoutes = require('./routes/stock.routes');
+const piezasSkuRoutes = require('./routes/piezasSku.routes');
+const dashboardRoutes = require('./routes/dashboard.routes');
+const inventarioRoutes = require('./routes/inventario.routes');
+const uploadRoutes = require('./routes/upload.routes');
 
 // Endpoints
 app.use('/api/auth', authRoutes); 
@@ -58,6 +64,24 @@ app.use('/api/gastos-operativos', gastosOperativosRoutes);
 
 //Piezas
 app.use('/api/piezas', piezasRoutes);
+
+// Costeo
+app.use('/api/costeo', costeoRoutes);
+
+// Stock y Movimientos
+app.use('/api/stock', stockRoutes);
+
+// SKUs de Piezas
+app.use('/api/piezas-sku', piezasSkuRoutes);
+
+// Dashboard
+app.use('/api/dashboard', dashboardRoutes);
+
+// Inventario (Resumen)
+app.use('/api/inventario', inventarioRoutes);
+
+// Uploads
+app.use('/api/upload', uploadRoutes);
 // Ruta de salud
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Servidor Kyro online y funcionando' });

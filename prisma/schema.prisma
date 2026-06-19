@@ -98,6 +98,7 @@ model Material {
   stockDisponible  Decimal    @map("stock_disponible") @db.Decimal(12, 4)
   stockMinimo      Decimal    @map("stock_minimo") @db.Decimal(12, 4)
   stockMaximo      Decimal?   @map("stock_maximo") @db.Decimal(12, 4)
+  observaciones    String?    @db.Text
   fechaCompra      DateTime?  @map("fecha_compra") @db.Date
   activo           Boolean    @default(true)
 

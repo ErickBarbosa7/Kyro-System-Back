@@ -4,7 +4,9 @@ const {
     obtenerPiezas,
     obtenerPiezaPorId,
     actualizarPieza,
-    eliminarPieza
+    eliminarPieza,
+    reactivarPieza,
+    actualizarPiezaCompleta
 } = require('../controllers/piezas.controller');
 
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
@@ -23,7 +25,9 @@ router.use(verificarToken);
 router.post('/', verificarRol('ADMINISTRADOR', 'PRODUCCION'), crearPieza); 
 router.get('/', obtenerPiezas); 
 router.get('/:id', obtenerPiezaPorId);
-router.put('/:id', verificarRol('ADMINISTRADOR', 'PRODUCCION'), actualizarPieza); 
+router.put('/:id', verificarRol('ADMINISTRADOR', 'PRODUCCION'), actualizarPieza);
+router.put('/:id/completa', verificarRol('ADMINISTRADOR', 'PRODUCCION'), actualizarPiezaCompleta);
 router.delete('/:id', verificarRol('ADMINISTRADOR'), eliminarPieza);
+router.put('/:id/reactivar', verificarRol('ADMINISTRADOR'), reactivarPieza);
 
 module.exports = router;

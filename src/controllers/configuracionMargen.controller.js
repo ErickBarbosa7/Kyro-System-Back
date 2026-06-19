@@ -11,8 +11,18 @@ const crearConfiguracion = async (req, res) => {
 
 const obtenerConfiguraciones = async (req, res) => {
     try {
+        const { estado } = req.query;
+
+        let filtro = { activo: true };
+
+        if (estado === 'inactivos') {
+            filtro = { activo: false };
+        } else if (estado === 'todos') {
+            filtro = {};
+        }
+
         const configuraciones = await prisma.configuracionMargen.findMany({
-            where: { activo: true }
+            where: filtro
         });
         res.json(configuraciones);
     } catch (error) {
@@ -47,4 +57,18 @@ const eliminarConfiguracion = async (req, res) => {
     }
 };
 
-module.exports = { crearConfiguracion, obtenerConfiguraciones, actualizarConfiguracion, eliminarConfiguracion };
+const reactivarConfiguracion = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await prisma.configuracionMargen.update({
+            where: { id },
+            data: { activo: true }
+        });
+        res.json({ mensaje: 'Configuración reactivada correctamente' });
+    } catch (error) {
+        if (error.code === 'P2025') return res.status(404).json({ error: 'Configuración no encontrada' });
+        res.status(500).json({ error: 'Error interno al reactivar la configuración' });
+    }
+};
+
+module.exports = { crearConfiguracion, obtenerConfiguraciones, actualizarConfiguracion, eliminarConfiguracion, reactivarConfiguracion };

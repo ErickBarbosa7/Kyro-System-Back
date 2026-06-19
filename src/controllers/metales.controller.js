@@ -25,7 +25,18 @@ const crearMetal = async (req, res) => {
 
 const obtenerMetales = async (req, res) => {
     try {
+        const { estado } = req.query;
+
+        let filtro = { activo: true };
+
+        if (estado === 'inactivos') {
+            filtro = { activo: false };
+        } else if (estado === 'todos') {
+            filtro = {};
+        }
+
         const metales = await prisma.metal.findMany({
+            where: filtro,
             orderBy: { nombre: 'asc' },
             include: {
                 proveedor: { select: { nombre: true } }

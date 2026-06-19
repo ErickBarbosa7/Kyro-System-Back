@@ -24,11 +24,21 @@ const crearAcabado = async (req, res) => {
     }
 };
 
-// GET: Obtener todos los Acabados activos
+// GET: Obtener todos los Acabados (Soporta papelera)
 const obtenerAcabados = async (req, res) => {
     try {
+        const { estado } = req.query;
+
+        let filtro = { activo: true };
+
+        if (estado === 'inactivos') {
+            filtro = { activo: false };
+        } else if (estado === 'todos') {
+            filtro = {};
+        }
+
         const acabados = await prisma.acabado.findMany({
-            where: { activo: true },
+            where: filtro,
             orderBy: { nombre: 'asc' },
             include: {
                 proveedor: { select: { nombre: true } }
@@ -78,4 +88,24 @@ const eliminarAcabado = async (req, res) => {
     }
 };
 
-module.exports = { crearAcabado, obtenerAcabados, actualizarAcabado, eliminarAcabado };
+// PUT: Reactivar Acabado (Sacar de la papelera)
+const reactivarAcabado = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await prisma.acabado.update({
+            where: { id },
+            data: { activo: true }
+        });
+
+        res.json({ mensaje: 'Acabado reactivado correctamente' });
+    } catch (error) {
+        console.error('Error en reactivarAcabado:', error);
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Acabado no encontrado' });
+        }
+        res.status(500).json({ error: 'Error interno al reactivar el acabado' });
+    }
+};
+
+module.exports = { crearAcabado, obtenerAcabados, actualizarAcabado, eliminarAcabado, reactivarAcabado };
